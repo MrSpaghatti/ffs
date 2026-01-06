@@ -3,6 +3,8 @@ use crate::types::{Command, Correction};
 use crate::rules::Rule;
 use std::sync::Arc;
 use std::fmt;
+use std::path::Path;
+use std::fs;
 
 #[derive(Clone)]
 pub struct RhaiRule {
@@ -24,6 +26,7 @@ impl fmt::Debug for RhaiRule {
 impl RhaiRule {
     pub fn new(name: String, script: &str, priority: usize) -> Self {
         let engine = Engine::new();
+        // In a real app we might want to handle compilation errors gracefully, but for now we expect valid scripts
         let ast = engine.compile(script).expect("Failed to compile rhai script");
         Self {
             engine: Arc::new(engine),
@@ -62,4 +65,25 @@ impl Rule for RhaiRule {
 
         vec![Correction::new(result, false, self.priority)]
     }
+}
+
+pub fn load_rhai_rules(dir: &Path) -> Vec<RhaiRule> {
+    let mut rules = Vec::new();
+
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.extension().map_or(false, |ext| ext == "rhai") {
+                    if let Ok(content) = fs::read_to_string(&path) {
+                        let name = path.file_stem().unwrap().to_string_lossy().to_string();
+                        // Priority default to 100 for now
+                        rules.push(RhaiRule::new(name, &content, 100));
+                    }
+                }
+            }
+        }
+    }
+
+    rules
 }

@@ -4,12 +4,14 @@ use ffs::config::load_config;
 use ffs::engine::Engine;
 use ffs::shells::{Shell, Bash, Fish};
 use ffs::rules::{cargo::CargoRule, git::GitCheckout, generic::UnknownCommand};
+use ffs::scripting::load_rhai_rules;
 use ffs::ui::select_correction;
 use ffs::utils::get_last_command;
 use std::sync::Arc;
 use std::process::{Command as SysCommand, Stdio};
 use anyhow::{Result, anyhow};
 use colored::Colorize;
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "ffs")]
@@ -81,7 +83,17 @@ fn main() -> Result<()> {
     engine.register_rule(Arc::new(GitCheckout));
     engine.register_rule(Arc::new(UnknownCommand));
 
-    // TODO: Load Rhai rules
+    // Load Rhai rules
+    // Use XDG config home usually, or ~/.config/ffs/rules
+    let config_dir = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+    let rules_dir = config_dir.join("ffs").join("rules");
+
+    if rules_dir.exists() {
+        let rhai_rules = load_rhai_rules(&rules_dir);
+        for rule in rhai_rules {
+            engine.register_rule(Arc::new(rule));
+        }
+    }
 
     // Step D: Get Corrections
     let corrections = engine.get_corrections(&command);
