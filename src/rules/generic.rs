@@ -122,3 +122,86 @@ fn is_executable(path: &Path) -> bool {
 
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+    use std::fs::File;
+    use serial_test::serial;
+
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    #[serial]
+    fn test_find_similar_commands() {
+        let dir = tempdir().unwrap();
+
+        let binary_name = if cfg!(windows) { "cargo.exe" } else { "cargo" };
+        let bin_path = dir.path().join(binary_name); // Target is "carg"
+
+        {
+            let file = File::create(&bin_path).unwrap();
+            #[cfg(unix)]
+            {
+                let mut perms = file.metadata().unwrap().permissions();
+                perms.set_mode(0o755); // Executable
+                file.set_permissions(perms).unwrap();
+            }
+        }
+
+        // Add dummy file that is not close
+        {
+             let other_name = if cfg!(windows) { "other_command.exe" } else { "other_command" };
+             let file = File::create(dir.path().join(other_name)).unwrap();
+             #[cfg(unix)]
+             {
+                 let mut perms = file.metadata().unwrap().permissions();
+                 perms.set_mode(0o755);
+                 file.set_permissions(perms).unwrap();
+             }
+        }
+
+        // Add dummy file that is close but not executable
+        // (On Windows, simple creation without .exe extension is enough to be "not executable" for our check)
+        {
+             File::create(dir.path().join("car")).unwrap();
+        }
+
+        let original_path = env::var("PATH").unwrap_or_default();
+        let new_path = if cfg!(windows) {
+             // On Windows, paths are separated by ;
+             format!("{};{}", dir.path().to_string_lossy(), original_path)
+        } else {
+             format!("{}:{}", dir.path().to_string_lossy(), original_path)
+        };
+
+        env::set_var("PATH", new_path);
+
+        let similar = find_similar_commands("carg");
+
+        env::set_var("PATH", original_path); // Restore
+
+        // On Windows the extension might or might not be returned depending on file iteration
+        // But our logic returns filename as is.
+        let expected = if cfg!(windows) { "cargo.exe" } else { "cargo" };
+
+        assert!(similar.contains(&expected.to_string()));
+
+        let other_expected = if cfg!(windows) { "other_command.exe" } else { "other_command" };
+        assert!(!similar.contains(&other_expected.to_string()));
+
+        assert!(!similar.contains(&"car".to_string()));
+    }
+
+    #[test]
+    fn test_unknown_command_matches() {
+        let rule = UnknownCommand;
+        let cmd = Command::new("foo".to_string(), "".to_string(), "bash: foo: command not found".to_string());
+        assert!(rule.matches(&cmd));
+
+        let cmd2 = Command::new("foo".to_string(), "".to_string(), "Error: unknown command 'foo'".to_string());
+        assert!(rule.matches(&cmd2));
+    }
+}

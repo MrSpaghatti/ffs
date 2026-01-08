@@ -41,3 +41,45 @@ pub fn load_config() -> Result<Config> {
         Ok(Config::default())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_parsing() {
+        let toml_str = r#"
+            rules = ["git", "ls"]
+            exclude_rules = ["rm"]
+            wait_command = 10
+            require_confirmation = false
+            no_colors = true
+            history_limit = 2000
+
+            [priority]
+            git = 100
+            ls = 50
+        "#;
+
+        let config: Config = toml::from_str(toml_str).unwrap();
+
+        assert_eq!(config.rules, Some(vec!["git".to_string(), "ls".to_string()]));
+        assert_eq!(config.exclude_rules, Some(vec!["rm".to_string()]));
+        assert_eq!(config.wait_command, Some(10));
+        assert_eq!(config.require_confirmation, Some(false));
+        assert_eq!(config.no_colors, Some(true));
+        assert_eq!(config.history_limit, Some(2000));
+
+        let priority = config.priority.unwrap();
+        assert_eq!(priority.get("git"), Some(&100));
+        assert_eq!(priority.get("ls"), Some(&50));
+    }
+
+    #[test]
+    fn test_default_config() {
+        let config = Config::default();
+        assert_eq!(config.wait_command, Some(3));
+        assert_eq!(config.require_confirmation, Some(true));
+        assert_eq!(config.no_colors, Some(false));
+    }
+}
