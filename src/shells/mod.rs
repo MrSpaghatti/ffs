@@ -6,6 +6,8 @@ pub trait Shell {
 
 pub mod bash;
 pub mod fish;
+pub mod zsh;
 
 pub use self::bash::Bash;
 pub use self::fish::Fish;
+pub use self::zsh::Zsh;

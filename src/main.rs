@@ -2,10 +2,10 @@ use clap::{Parser, Subcommand};
 use ffs::types::Command;
 use ffs::config::load_config;
 use ffs::engine::Engine;
-use ffs::shells::{Shell, Bash, Fish};
+use ffs::shells::{Shell, Bash, Fish, Zsh};
 use ffs::rules::{
     cargo::CargoRule,
-    git::GitCheckout,
+    git::{GitCheckout, GitPush, GitNoCommand},
     generic::UnknownCommand,
     mkdir::MkdirP,
     sudo::Sudo,
@@ -40,6 +40,7 @@ fn main() -> Result<()> {
         let shell: Box<dyn Shell> = match shell_name.as_str() {
             "bash" => Box::new(Bash),
             "fish" => Box::new(Fish),
+            "zsh" => Box::new(Zsh),
             _ => return Err(anyhow!("Unsupported shell: {}", shell_name)),
         };
         println!("{}", shell.app_alias("ffs")); // Or 'fuck' if user wants
@@ -88,6 +89,8 @@ fn main() -> Result<()> {
     // Register builtin rules
     engine.register_rule(Arc::new(CargoRule));
     engine.register_rule(Arc::new(GitCheckout));
+    engine.register_rule(Arc::new(GitPush));
+    engine.register_rule(Arc::new(GitNoCommand));
     engine.register_rule(Arc::new(UnknownCommand));
     engine.register_rule(Arc::new(MkdirP));
     engine.register_rule(Arc::new(Sudo));

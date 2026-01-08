@@ -22,3 +22,5 @@ mod mkdir_tests;
 mod sudo_tests;
 #[cfg(test)]
 mod cd_tests;
+#[cfg(test)]
+mod git_tests;
