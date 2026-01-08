@@ -274,6 +274,8 @@ dependencies = [
  "rhai",
  "serde",
  "shell-escape",
+ "shell-words",
+ "strsim",
  "toml",
  "which",
 ]

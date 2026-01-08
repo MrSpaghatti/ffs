@@ -3,7 +3,14 @@ use ffs::types::Command;
 use ffs::config::load_config;
 use ffs::engine::Engine;
 use ffs::shells::{Shell, Bash, Fish};
-use ffs::rules::{cargo::CargoRule, git::GitCheckout, generic::UnknownCommand};
+use ffs::rules::{
+    cargo::CargoRule,
+    git::GitCheckout,
+    generic::UnknownCommand,
+    mkdir::MkdirP,
+    sudo::Sudo,
+    cd::CdMkdir,
+};
 use ffs::scripting::load_rhai_rules;
 use ffs::ui::select_correction;
 use ffs::utils::get_last_command;
@@ -82,6 +89,9 @@ fn main() -> Result<()> {
     engine.register_rule(Arc::new(CargoRule));
     engine.register_rule(Arc::new(GitCheckout));
     engine.register_rule(Arc::new(UnknownCommand));
+    engine.register_rule(Arc::new(MkdirP));
+    engine.register_rule(Arc::new(Sudo));
+    engine.register_rule(Arc::new(CdMkdir));
 
     // Load Rhai rules
     // Use XDG config home usually, or ~/.config/ffs/rules
