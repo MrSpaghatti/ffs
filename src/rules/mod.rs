@@ -15,6 +15,7 @@ pub mod generic;
 pub mod mkdir;
 pub mod sudo;
 pub mod cd;
+pub mod python;
 
 #[cfg(test)]
 mod mkdir_tests;
@@ -24,3 +25,5 @@ mod sudo_tests;
 mod cd_tests;
 #[cfg(test)]
 mod git_tests;
+#[cfg(test)]
+mod python_tests;

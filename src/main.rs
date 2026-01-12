@@ -10,6 +10,7 @@ use ffs::rules::{
     mkdir::MkdirP,
     sudo::Sudo,
     cd::CdMkdir,
+    python::{PythonExecute, PipUnknownCommand},
 };
 use ffs::scripting::load_rhai_rules;
 use ffs::ui::select_correction;
@@ -95,6 +96,8 @@ fn main() -> Result<()> {
     engine.register_rule(Arc::new(MkdirP));
     engine.register_rule(Arc::new(Sudo));
     engine.register_rule(Arc::new(CdMkdir));
+    engine.register_rule(Arc::new(PythonExecute));
+    engine.register_rule(Arc::new(PipUnknownCommand));
 
     // Load Rhai rules
     // Use XDG config home usually, or ~/.config/ffs/rules
