@@ -12,3 +12,18 @@ pub trait Rule: Send + Sync + Debug {
 pub mod cargo;
 pub mod git;
 pub mod generic;
+pub mod mkdir;
+pub mod sudo;
+pub mod cd;
+pub mod python;
+
+#[cfg(test)]
+mod mkdir_tests;
+#[cfg(test)]
+mod sudo_tests;
+#[cfg(test)]
+mod cd_tests;
+#[cfg(test)]
+mod git_tests;
+#[cfg(test)]
+mod python_tests;
