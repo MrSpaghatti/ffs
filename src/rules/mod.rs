@@ -1,6 +1,5 @@
 use crate::types::{Command, Correction};
 use std::fmt::Debug;
-use anyhow::Result;
 
 pub trait Rule: Send + Sync + Debug {
     fn matches(&self, command: &Command) -> bool;
@@ -16,6 +15,7 @@ pub mod mkdir;
 pub mod sudo;
 pub mod cd;
 pub mod python;
+pub mod grep;
 
 #[cfg(test)]
 mod mkdir_tests;
@@ -27,3 +27,5 @@ mod cd_tests;
 mod git_tests;
 #[cfg(test)]
 mod python_tests;
+#[cfg(test)]
+mod grep_tests;

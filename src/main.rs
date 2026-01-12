@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use ffs::types::Command;
 use ffs::config::load_config;
 use ffs::engine::Engine;
@@ -11,6 +11,7 @@ use ffs::rules::{
     sudo::Sudo,
     cd::CdMkdir,
     python::{PythonExecute, PipUnknownCommand},
+    grep::GrepRecursive,
 };
 use ffs::scripting::load_rhai_rules;
 use ffs::ui::select_correction;
@@ -98,6 +99,7 @@ fn main() -> Result<()> {
     engine.register_rule(Arc::new(CdMkdir));
     engine.register_rule(Arc::new(PythonExecute));
     engine.register_rule(Arc::new(PipUnknownCommand));
+    engine.register_rule(Arc::new(GrepRecursive));
 
     // Load Rhai rules
     // Use XDG config home usually, or ~/.config/ffs/rules
