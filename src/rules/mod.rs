@@ -5,6 +5,10 @@ pub trait Rule: Send + Sync + Debug {
     fn matches(&self, command: &Command) -> bool;
     fn generate_corrections(&self, command: &Command) -> Vec<Correction>;
     fn name(&self) -> &str;
+    
+    // Optional initialization with per-rule settings
+    #[allow(unused_variables)]
+    fn init(&mut self, settings: &std::collections::HashMap<String, toml::Value>) {}
 }
 
 // Submodules for builtin rules
@@ -15,6 +19,7 @@ pub mod mkdir;
 pub mod sudo;
 pub mod cd;
 pub mod python;
+pub mod python_cmd;
 pub mod grep;
 pub mod rm;
 pub mod apt_get;
@@ -33,6 +38,8 @@ mod cd_tests;
 mod git_tests;
 #[cfg(test)]
 mod python_tests;
+#[cfg(test)]
+mod python_cmd_tests;
 #[cfg(test)]
 mod grep_tests;
 #[cfg(test)]

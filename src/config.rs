@@ -12,6 +12,7 @@ pub struct Config {
     pub no_colors: Option<bool>,
     pub priority: Option<std::collections::HashMap<String, usize>>,
     pub history_limit: Option<usize>,
+    pub rule_settings: Option<std::collections::HashMap<String, std::collections::HashMap<String, toml::Value>>>,
 }
 
 impl Default for Config {
@@ -24,6 +25,7 @@ impl Default for Config {
             no_colors: Some(false),
             priority: None,
             history_limit: Some(100),
+            rule_settings: None,
         }
     }
 }
@@ -51,6 +53,25 @@ fn apply_env_overrides(mut config: Config) -> Config {
             config.wait_command = Some(n);
         }
     }
+
+    // FFS_RULE_<NAME>_<KEY>
+    for (key, val) in std::env::vars() {
+        if key.starts_with("FFS_RULE_") {
+            let parts: Vec<&str> = key.splitn(4, '_').collect();
+            if parts.len() >= 4 {
+                let rule_name = parts[2].to_lowercase();
+                let rule_key = parts[3].to_lowercase();
+                
+                // Parse the value using toml, or treat it as string
+                let toml_val: toml::Value = val.parse().unwrap_or_else(|_| toml::Value::String(val));
+                
+                let rule_settings = config.rule_settings.get_or_insert_with(std::collections::HashMap::new);
+                let settings = rule_settings.entry(rule_name).or_insert_with(std::collections::HashMap::new);
+                settings.insert(rule_key, toml_val);
+            }
+        }
+    }
+
     config
 }
 
@@ -99,6 +120,22 @@ mod tests {
         let priority = config.priority.unwrap();
         assert_eq!(priority.get("git"), Some(&100));
         assert_eq!(priority.get("ls"), Some(&50));
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_per_rule_settings_env() {
+        std::env::set_var("FFS_RULE_GIT_DEFAULT_BRANCH", "main");
+        std::env::set_var("FFS_RULE_CARGO_ALLOW_UNSTABLE", "true");
+        
+        let config = apply_env_overrides(Config::default());
+        let settings = config.rule_settings.unwrap();
+        
+        assert_eq!(settings["git"]["default_branch"], toml::Value::String("main".to_string()));
+        assert_eq!(settings["cargo"]["allow_unstable"], toml::Value::Boolean(true));
+        
+        std::env::remove_var("FFS_RULE_GIT_DEFAULT_BRANCH");
+        std::env::remove_var("FFS_RULE_CARGO_ALLOW_UNSTABLE");
     }
 
     #[test]

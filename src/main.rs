@@ -11,6 +11,7 @@ use ffs::rules::{
     sudo::Sudo,
     cd::CdMkdir,
     python::{PythonExecute, PipUnknownCommand},
+    python_cmd::PythonCommand,
     grep::GrepRecursive,
     rm::RmDir,
     apt_get::AptGet,
@@ -22,7 +23,6 @@ use ffs::rules::{
 use ffs::scripting::load_rhai_rules;
 use ffs::ui::select_correction;
 use ffs::utils::get_last_command;
-use std::sync::Arc;
 use std::process::{Command as SysCommand, Stdio};
 use anyhow::{Result, anyhow};
 use colored::Colorize;
@@ -38,6 +38,10 @@ struct Cli {
     /// Skip confirmation and apply the first correction
     #[arg(short = 'y', long)]
     yeah: bool,
+
+    /// Enable multi-select mode
+    #[arg(short = 'm', long)]
+    select_multiple: bool,
 
     /// Command arguments (captured when used as alias)
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -99,23 +103,24 @@ fn main() -> Result<()> {
     let mut engine = Engine::new(config.clone());
 
     // Register builtin rules
-    engine.register_rule(Arc::new(CargoRule));
-    engine.register_rule(Arc::new(GitCheckout));
-    engine.register_rule(Arc::new(GitPush));
-    engine.register_rule(Arc::new(GitNoCommand));
-    engine.register_rule(Arc::new(UnknownCommand));
-    engine.register_rule(Arc::new(MkdirP));
-    engine.register_rule(Arc::new(Sudo));
-    engine.register_rule(Arc::new(CdMkdir));
-    engine.register_rule(Arc::new(PythonExecute));
-    engine.register_rule(Arc::new(PipUnknownCommand));
-    engine.register_rule(Arc::new(GrepRecursive));
-    engine.register_rule(Arc::new(RmDir));
-    engine.register_rule(Arc::new(AptGet));
-    engine.register_rule(Arc::new(BrewUnknownCommand));
-    engine.register_rule(Arc::new(CpCreateDestination));
-    engine.register_rule(Arc::new(LsAll));
-    engine.register_rule(Arc::new(GitAdd));
+    engine.register_rule(Box::new(CargoRule));
+    engine.register_rule(Box::new(GitCheckout));
+    engine.register_rule(Box::new(GitPush));
+    engine.register_rule(Box::new(GitNoCommand));
+    engine.register_rule(Box::new(UnknownCommand));
+    engine.register_rule(Box::new(MkdirP));
+    engine.register_rule(Box::new(Sudo));
+    engine.register_rule(Box::new(CdMkdir));
+    engine.register_rule(Box::new(PythonExecute));
+    engine.register_rule(Box::new(PythonCommand));
+    engine.register_rule(Box::new(PipUnknownCommand));
+    engine.register_rule(Box::new(GrepRecursive));
+    engine.register_rule(Box::new(RmDir));
+    engine.register_rule(Box::new(AptGet));
+    engine.register_rule(Box::new(BrewUnknownCommand));
+    engine.register_rule(Box::new(CpCreateDestination));
+    engine.register_rule(Box::new(LsAll));
+    engine.register_rule(Box::new(GitAdd));
 
     // Load Rhai rules
     // Use XDG config home usually, or ~/.config/ffs/rules
@@ -125,7 +130,7 @@ fn main() -> Result<()> {
     if rules_dir.exists() {
         let rhai_rules = load_rhai_rules(&rules_dir);
         for rule in rhai_rules {
-            engine.register_rule(Arc::new(rule));
+            engine.register_rule(Box::new(rule));
         }
     }
 
@@ -142,8 +147,14 @@ fn main() -> Result<()> {
         if let Some(correction) = corrections.first() {
             print!("{}", correction.command);
         }
-    } else if let Some(correction) = select_correction(&corrections) {
-        print!("{}", correction.command);
+    } else {
+        let selected = select_correction(&corrections, cli.select_multiple);
+        for (i, correction) in selected.iter().enumerate() {
+            if i > 0 {
+                println!();
+            }
+            print!("{}", correction.command);
+        }
     }
 
     Ok(())
