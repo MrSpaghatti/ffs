@@ -35,6 +35,10 @@ struct Cli {
     #[arg(short, long)]
     alias: Option<String>,
 
+    /// Skip confirmation and apply the first correction
+    #[arg(short = 'y', long)]
+    yeah: bool,
+
     /// Command arguments (captured when used as alias)
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     args: Vec<String>,
@@ -92,7 +96,7 @@ fn main() -> Result<()> {
 
     // Step C: Initialize Engine & Load Rules
     let config = load_config()?;
-    let mut engine = Engine::new(config);
+    let mut engine = Engine::new(config.clone());
 
     // Register builtin rules
     engine.register_rule(Arc::new(CargoRule));
@@ -134,7 +138,11 @@ fn main() -> Result<()> {
     }
 
     // Step E: Select Correction
-    if let Some(correction) = select_correction(&corrections) {
+    if cli.yeah || config.require_confirmation == Some(false) {
+        if let Some(correction) = corrections.first() {
+            print!("{}", correction.command);
+        }
+    } else if let Some(correction) = select_correction(&corrections) {
         print!("{}", correction.command);
     }
 

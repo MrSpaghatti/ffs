@@ -28,18 +28,44 @@ impl Default for Config {
     }
 }
 
+fn apply_env_overrides(mut config: Config) -> Config {
+    if let Ok(val) = std::env::var("FFS_RULES") {
+        config.rules = Some(val.split(',').map(|s| s.trim().to_string()).collect());
+    }
+    if let Ok(val) = std::env::var("FFS_EXCLUDE_RULES") {
+        config.exclude_rules = Some(val.split(',').map(|s| s.trim().to_string()).collect());
+    }
+    if let Ok(val) = std::env::var("FFS_REQUIRE_CONFIRMATION") {
+        config.require_confirmation = Some(val == "1" || val.to_lowercase() == "true");
+    }
+    if let Ok(val) = std::env::var("FFS_NO_COLORS") {
+        config.no_colors = Some(val == "1" || val.to_lowercase() == "true");
+    }
+    if let Ok(val) = std::env::var("FFS_HISTORY_LIMIT") {
+        if let Ok(n) = val.parse::<usize>() {
+            config.history_limit = Some(n);
+        }
+    }
+    if let Ok(val) = std::env::var("FFS_WAIT_COMMAND") {
+        if let Ok(n) = val.parse::<u64>() {
+            config.wait_command = Some(n);
+        }
+    }
+    config
+}
+
 pub fn load_config() -> Result<Config> {
-    // For now, return default. TODO: Load from XDG_CONFIG_HOME
     let config_dir = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
     let config_path = config_dir.join("ffs").join("config.toml");
 
-    if config_path.exists() {
+    let config = if config_path.exists() {
         let contents = fs::read_to_string(config_path)?;
-        let config: Config = toml::from_str(&contents)?;
-        Ok(config)
+        toml::from_str(&contents)?
     } else {
-        Ok(Config::default())
-    }
+        Config::default()
+    };
+
+    Ok(apply_env_overrides(config))
 }
 
 #[cfg(test)]
