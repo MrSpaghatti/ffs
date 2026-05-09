@@ -13,6 +13,11 @@ use ffs::rules::{
     python::{PythonExecute, PipUnknownCommand},
     grep::GrepRecursive,
     rm::RmDir,
+    apt_get::AptGet,
+    brew::BrewUnknownCommand,
+    cp::CpCreateDestination,
+    ls::LsAll,
+    git_add::GitAdd,
 };
 use ffs::scripting::load_rhai_rules;
 use ffs::ui::select_correction;
@@ -102,6 +107,11 @@ fn main() -> Result<()> {
     engine.register_rule(Arc::new(PipUnknownCommand));
     engine.register_rule(Arc::new(GrepRecursive));
     engine.register_rule(Arc::new(RmDir));
+    engine.register_rule(Arc::new(AptGet));
+    engine.register_rule(Arc::new(BrewUnknownCommand));
+    engine.register_rule(Arc::new(CpCreateDestination));
+    engine.register_rule(Arc::new(LsAll));
+    engine.register_rule(Arc::new(GitAdd));
 
     // Load Rhai rules
     // Use XDG config home usually, or ~/.config/ffs/rules

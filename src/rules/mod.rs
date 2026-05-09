@@ -17,6 +17,11 @@ pub mod cd;
 pub mod python;
 pub mod grep;
 pub mod rm;
+pub mod apt_get;
+pub mod brew;
+pub mod cp;
+pub mod ls;
+pub mod git_add;
 
 #[cfg(test)]
 mod mkdir_tests;
@@ -32,3 +37,13 @@ mod python_tests;
 mod grep_tests;
 #[cfg(test)]
 mod rm_tests;
+#[cfg(test)]
+mod apt_get_tests;
+#[cfg(test)]
+mod brew_tests;
+#[cfg(test)]
+mod cp_tests;
+#[cfg(test)]
+mod ls_tests;
+#[cfg(test)]
+mod git_add_tests;
