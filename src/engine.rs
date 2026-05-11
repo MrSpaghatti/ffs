@@ -2,6 +2,8 @@ use crate::rules::Rule;
 use crate::types::{Command, Correction};
 use crate::config::Config;
 use std::sync::Arc;
+use rayon::prelude::*;
+use std::time::Instant;
 
 pub struct Engine {
     rules: Vec<Arc<dyn Rule>>,
@@ -41,14 +43,34 @@ impl Engine {
     }
 
     pub fn get_corrections(&self, command: &Command) -> Vec<Correction> {
-        let mut corrections = Vec::new();
+        let timeout_ms = self.config.slow_rule_timeout_ms.unwrap_or(500) as u128;
 
-        for rule in &self.rules {
-            if rule.matches(command) {
-                let mut new_corrections = rule.generate_corrections(command);
-                corrections.append(&mut new_corrections);
+        let evaluate_rule = |rule: &Arc<dyn Rule>| -> Vec<Correction> {
+            let start = Instant::now();
+            let is_match = rule.matches(command);
+            let elapsed = start.elapsed().as_millis();
+
+            if elapsed > timeout_ms {
+                eprintln!("Warning: Rule '{}' took {}ms to match, exceeding timeout of {}ms. Skipping.", rule.name(), elapsed, timeout_ms);
+                return vec![];
             }
-        }
+
+            if is_match {
+                rule.generate_corrections(command)
+            } else {
+                vec![]
+            }
+        };
+
+        let mut corrections: Vec<Correction> = if self.rules.len() > 20 {
+            self.rules.par_iter()
+                .flat_map(evaluate_rule)
+                .collect()
+        } else {
+            self.rules.iter()
+                .flat_map(evaluate_rule)
+                .collect()
+        };
 
         // Sort by priority
         corrections.sort_by(|a, b| b.priority.cmp(&a.priority));
@@ -113,6 +135,39 @@ mod tests {
 
         assert_eq!(engine.rules.len(), 1);
         assert_eq!(engine.rules[0].name(), "rule1");
+    }
+
+    #[test]
+    fn test_parallel_vs_sequential() {
+        let config = Config::default();
+        let mut engine_seq = Engine::new(config.clone());
+        let mut engine_par = Engine::new(config.clone());
+
+        // Less than 20 rules -> sequential
+        for i in 0..10 {
+            engine_seq.register_rule(Box::new(MockRule::new(&format!("rule_{}", i), i)));
+        }
+
+        // More than 20 rules -> parallel
+        for i in 0..25 {
+            engine_par.register_rule(Box::new(MockRule::new(&format!("rule_{}", i), i)));
+        }
+
+        let command = Command::new("foo".to_string(), "".to_string(), "".to_string());
+        
+        let seq_corrections = engine_seq.get_corrections(&command);
+        assert_eq!(seq_corrections.len(), 10);
+        
+        let par_corrections = engine_par.get_corrections(&command);
+        assert_eq!(par_corrections.len(), 25);
+        
+        // Verify both are sorted by priority (descending)
+        for i in 0..9 {
+            assert!(seq_corrections[i].priority >= seq_corrections[i+1].priority);
+        }
+        for i in 0..24 {
+            assert!(par_corrections[i].priority >= par_corrections[i+1].priority);
+        }
     }
 
     #[test]

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::rules::git::{GitPush, GitNoCommand, GitCheckout};
+    use crate::rules::git::{GitPush, GitNoCommand, GitCheckout, GitMerge, GitBranchExists, GitStash};
     use crate::types::Command;
     use crate::rules::Rule;
 
@@ -47,5 +47,51 @@ mod tests {
         let corrections = rule.generate_corrections(&command);
         assert_eq!(corrections.len(), 1);
         assert_eq!(corrections[0].command, "git checkout -b feature");
+    }
+
+    #[test]
+    fn test_git_merge() {
+        let rule = GitMerge;
+        let command = Command::new(
+            "git merge feature".to_string(),
+            "".to_string(),
+            "Automatic merge failed; fix conflicts and then commit the result.".to_string(),
+        );
+
+        assert!(rule.matches(&command));
+        let corrections = rule.generate_corrections(&command);
+        assert_eq!(corrections.len(), 2);
+        assert_eq!(corrections[0].command, "git merge --abort");
+        assert_eq!(corrections[1].command, "git mergetool");
+    }
+
+    #[test]
+    fn test_git_branch_exists() {
+        let rule = GitBranchExists;
+        let command = Command::new(
+            "git branch -d feature".to_string(),
+            "".to_string(),
+            "error: The branch 'feature' is not fully merged.\nIf you are sure you want to delete it, run 'git branch -D feature'.".to_string(),
+        );
+
+        assert!(rule.matches(&command));
+        let corrections = rule.generate_corrections(&command);
+        assert_eq!(corrections.len(), 1);
+        assert_eq!(corrections[0].command, "git branch -D feature");
+    }
+
+    #[test]
+    fn test_git_stash() {
+        let rule = GitStash;
+        let command = Command::new(
+            "git stash pop".to_string(),
+            "".to_string(),
+            "Auto-merging file.txt\nCONFLICT (content): Merge conflict in file.txt".to_string(),
+        );
+
+        assert!(rule.matches(&command));
+        let corrections = rule.generate_corrections(&command);
+        assert_eq!(corrections.len(), 1);
+        assert_eq!(corrections[0].command, "git stash drop");
     }
 }
