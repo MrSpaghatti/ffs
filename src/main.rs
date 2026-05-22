@@ -5,7 +5,7 @@ use ffs::engine::Engine;
 use ffs::shells::{Shell, Bash, Fish, Zsh};
 use ffs::rules::{
     cargo::CargoRule,
-    git::{GitCheckout, GitPush, GitNoCommand},
+    git::{GitCheckout, GitPush, GitNoCommand, GitMerge, GitBranchExists, GitStash},
     generic::UnknownCommand,
     mkdir::MkdirP,
     sudo::Sudo,
@@ -23,6 +23,7 @@ use ffs::rules::{
 use ffs::scripting::load_rhai_rules;
 use ffs::ui::select_correction;
 use ffs::utils::get_last_command;
+use ffs::history::alter_history;
 use std::process::{Command as SysCommand, Stdio};
 use anyhow::{Result, anyhow};
 use colored::Colorize;
@@ -107,6 +108,9 @@ fn main() -> Result<()> {
     engine.register_rule(Box::new(GitCheckout));
     engine.register_rule(Box::new(GitPush));
     engine.register_rule(Box::new(GitNoCommand));
+    engine.register_rule(Box::new(GitMerge));
+    engine.register_rule(Box::new(GitBranchExists));
+    engine.register_rule(Box::new(GitStash));
     engine.register_rule(Box::new(UnknownCommand));
     engine.register_rule(Box::new(MkdirP));
     engine.register_rule(Box::new(Sudo));
@@ -143,9 +147,11 @@ fn main() -> Result<()> {
     }
 
     // Step E: Select Correction
+    let mut applied_corrections = Vec::new();
     if cli.yeah || config.require_confirmation == Some(false) {
         if let Some(correction) = corrections.first() {
             print!("{}", correction.command);
+            applied_corrections.push(correction.clone());
         }
     } else {
         let selected = select_correction(&corrections, cli.select_multiple);
@@ -154,6 +160,17 @@ fn main() -> Result<()> {
                 println!();
             }
             print!("{}", correction.command);
+            applied_corrections.push((*correction).clone());
+        }
+    }
+
+    // Step F: Alter History
+    if let Some(shell_name) = std::env::var("TF_SHELL").ok() {
+        if let Some(first_applied) = applied_corrections.first() {
+            // Apply only the first one to history to keep it simple,
+            // or if we needed to apply multiple we could, but usually
+            // it's a single corrected command replacing the old one.
+            let _ = alter_history(&command.script, &first_applied.command, &shell_name);
         }
     }
 

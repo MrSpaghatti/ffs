@@ -27,6 +27,66 @@ impl Rule for GitCheckout {
 }
 
 #[derive(Debug)]
+pub struct GitMerge;
+
+impl Rule for GitMerge {
+    fn name(&self) -> &str {
+        "git_merge"
+    }
+
+    fn matches(&self, command: &Command) -> bool {
+        command.script.starts_with("git merge") &&
+        (command.stderr.contains("Automatic merge failed") || command.stderr.contains("Merge conflict"))
+    }
+
+    fn generate_corrections(&self, _command: &Command) -> Vec<Correction> {
+        vec![
+            Correction::new("git merge --abort".to_string(), false, 80),
+            Correction::new("git mergetool".to_string(), false, 70),
+        ]
+    }
+}
+
+#[derive(Debug)]
+pub struct GitBranchExists;
+
+impl Rule for GitBranchExists {
+    fn name(&self) -> &str {
+        "git_branch_exists"
+    }
+
+    fn matches(&self, command: &Command) -> bool {
+        command.script.starts_with("git branch -d ") &&
+        command.stderr.contains("is not fully merged")
+    }
+
+    fn generate_corrections(&self, command: &Command) -> Vec<Correction> {
+        let mut corrections = Vec::new();
+        let new_cmd = command.script.replace(" -d ", " -D ");
+        corrections.push(Correction::new(new_cmd, true, 100));
+        corrections
+    }
+}
+
+#[derive(Debug)]
+pub struct GitStash;
+
+impl Rule for GitStash {
+    fn name(&self) -> &str {
+        "git_stash"
+    }
+
+    fn matches(&self, command: &Command) -> bool {
+        command.script.starts_with("git stash pop") &&
+        (command.stderr.contains("CONFLICT") || command.stderr.contains("Merge conflict in"))
+    }
+
+    fn generate_corrections(&self, _command: &Command) -> Vec<Correction> {
+        vec![Correction::new("git stash drop".to_string(), true, 80)]
+    }
+}
+
+#[derive(Debug)]
 pub struct GitPush;
 
 impl Rule for GitPush {

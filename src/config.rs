@@ -13,6 +13,7 @@ pub struct Config {
     pub priority: Option<std::collections::HashMap<String, usize>>,
     pub history_limit: Option<usize>,
     pub rule_settings: Option<std::collections::HashMap<String, std::collections::HashMap<String, toml::Value>>>,
+    pub slow_rule_timeout_ms: Option<u64>,
 }
 
 impl Default for Config {
@@ -26,6 +27,7 @@ impl Default for Config {
             priority: None,
             history_limit: Some(100),
             rule_settings: None,
+            slow_rule_timeout_ms: Some(500),
         }
     }
 }
@@ -51,6 +53,11 @@ fn apply_env_overrides(mut config: Config) -> Config {
     if let Ok(val) = std::env::var("FFS_WAIT_COMMAND") {
         if let Ok(n) = val.parse::<u64>() {
             config.wait_command = Some(n);
+        }
+    }
+    if let Ok(val) = std::env::var("FFS_SLOW_RULE_TIMEOUT") {
+        if let Ok(n) = val.parse::<u64>() {
+            config.slow_rule_timeout_ms = Some(n);
         }
     }
 

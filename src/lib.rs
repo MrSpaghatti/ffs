@@ -6,3 +6,4 @@ pub mod config;
 pub mod ui;
 pub mod utils;
 pub mod scripting;
+pub mod history;
