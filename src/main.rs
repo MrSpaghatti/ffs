@@ -6,6 +6,7 @@ use ffs::shells::{Shell, Bash, Fish, Zsh};
 use ffs::rules::{
     cargo::CargoRule,
     git::{GitCheckout, GitPush, GitNoCommand},
+    git_add::GitAdd,
     generic::UnknownCommand,
     mkdir::MkdirP,
     sudo::Sudo,
@@ -93,6 +94,7 @@ fn main() -> Result<()> {
     engine.register_rule(Arc::new(GitCheckout));
     engine.register_rule(Arc::new(GitPush));
     engine.register_rule(Arc::new(GitNoCommand));
+    engine.register_rule(Arc::new(GitAdd));
     engine.register_rule(Arc::new(UnknownCommand));
     engine.register_rule(Arc::new(MkdirP));
     engine.register_rule(Arc::new(Sudo));
