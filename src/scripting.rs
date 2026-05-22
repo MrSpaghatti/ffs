@@ -1,12 +1,43 @@
-use rhai::{Engine, Scope, AST};
+/*!
+# Rhai Scripting API for FFS
+
+Rules written in Rhai can implement the following functions:
+- `fn matches() -> bool`: Determines if the rule applies to the command.
+- `fn get_new_command() -> String | CorrectionBuilder`: Returns the corrected command or a builder object.
+
+Available functions:
+- `which(cmd: String) -> bool`: Checks if a command exists in PATH.
+- `is_match(pattern: String, text: String) -> bool`: Checks if text matches the regex pattern.
+- `replace(pattern: String, text: String, replacement: String) -> String`: Replaces matches in text using regex pattern.
+- `side_effect(command: String) -> CorrectionBuilder`: Creates a correction with side_effect set to true.
+
+A Rule can optionally declare `let priority = <number>;` at the top level to set its priority.
+*/
+use rhai::{Engine, Scope, AST, Dynamic, CustomType, TypeBuilder};
 use crate::types::{Command, Correction};
 use crate::rules::Rule;
 use std::sync::Arc;
 use std::fmt;
 use std::path::Path;
 use std::fs;
+use regex::Regex;
 
-#[derive(Clone)]
+#[derive(Clone, CustomType)]
+pub struct CorrectionBuilder {
+    pub command: String,
+    pub side_effect: bool,
+    pub priority: usize,
+}
+
+impl CorrectionBuilder {
+    pub fn new(command: String) -> Self {
+        Self {
+            command,
+            side_effect: false,
+            priority: 100,
+        }
+    }
+}
 pub struct RhaiRule {
     engine: Arc<Engine>,
     ast: AST,
@@ -24,10 +55,47 @@ impl fmt::Debug for RhaiRule {
 }
 
 impl RhaiRule {
-    pub fn new(name: String, script: &str, priority: usize) -> Self {
-        let engine = Engine::new();
-        // In a real app we might want to handle compilation errors gracefully, but for now we expect valid scripts
+    pub fn new(name: String, script: &str, default_priority: usize) -> Self {
+        let mut engine = Engine::new();
+
+        engine.build_type::<CorrectionBuilder>();
+
+        engine.register_fn("side_effect", |cmd: String| {
+            let mut builder = CorrectionBuilder::new(cmd);
+            builder.side_effect = true;
+            builder
+        });
+
+        engine.register_fn("which", |cmd: String| {
+            which::which(cmd).is_ok()
+        });
+
+        engine.register_fn("is_match", |pattern: String, text: String| {
+            if let Ok(re) = Regex::new(&pattern) {
+                re.is_match(&text)
+            } else {
+                false
+            }
+        });
+
+        engine.register_fn("replace", |pattern: String, text: String, repl: String| {
+            if let Ok(re) = Regex::new(&pattern) {
+                re.replace_all(&text, repl.as_str()).into_owned()
+            } else {
+                text
+            }
+        });
+
         let ast = engine.compile(script).expect("Failed to compile rhai script");
+
+        let mut scope = Scope::new();
+        let mut priority = default_priority;
+        if let Ok(_) = engine.eval_ast_with_scope::<()>(&mut scope, &ast) {
+            if let Some(p) = scope.get_value::<i64>("priority") {
+                priority = p as usize;
+            }
+        }
+
         Self {
             engine: Arc::new(engine),
             ast,
@@ -58,12 +126,19 @@ impl Rule for RhaiRule {
         scope.push("stdout", command.stdout.clone());
         scope.push("stderr", command.stderr.clone());
 
-        let result: String = match self.engine.call_fn(&mut scope, &self.ast, "get_new_command", ()) {
-            Ok(s) => s,
+        let result: Dynamic = match self.engine.call_fn(&mut scope, &self.ast, "get_new_command", ()) {
+            Ok(res) => res,
             Err(_) => return vec![],
         };
 
-        vec![Correction::new(result, false, self.priority)]
+        if let Some(cmd_str) = result.clone().try_cast::<String>() {
+            vec![Correction::new(cmd_str, false, self.priority)]
+        } else if let Some(builder) = result.try_cast::<CorrectionBuilder>() {
+            let p = if builder.priority != 100 { builder.priority } else { self.priority };
+            vec![Correction::new(builder.command, builder.side_effect, p)]
+        } else {
+            vec![]
+        }
     }
 }
 

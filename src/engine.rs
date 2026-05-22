@@ -16,20 +16,28 @@ impl Engine {
         }
     }
 
-    pub fn register_rule(&mut self, rule: Arc<dyn Rule>) {
+    pub fn register_rule(&mut self, mut rule: Box<dyn Rule>) {
         // Check exclusion/inclusion based on config
-        let name = rule.name();
+        let name = rule.name().to_string();
         if let Some(excluded) = &self.config.exclude_rules {
-            if excluded.contains(&name.to_string()) {
+            if excluded.contains(&name) {
                 return;
             }
         }
         if let Some(included) = &self.config.rules {
-            if !included.contains(&name.to_string()) {
+            if !included.contains(&name) {
                 return; // Only include allowed rules if whitelist exists
             }
         }
-        self.rules.push(rule);
+
+        // Pass per-rule settings to the rule
+        if let Some(rule_settings) = &self.config.rule_settings {
+            if let Some(settings) = rule_settings.get(&name) {
+                rule.init(settings);
+            }
+        }
+
+        self.rules.push(Arc::from(rule));
     }
 
     pub fn get_corrections(&self, command: &Command) -> Vec<Correction> {
@@ -87,8 +95,8 @@ mod tests {
         config.rules = Some(vec!["rule1".to_string()]);
 
         let mut engine = Engine::new(config);
-        engine.register_rule(Arc::new(MockRule::new("rule1", 100)));
-        engine.register_rule(Arc::new(MockRule::new("rule2", 100)));
+        engine.register_rule(Box::new(MockRule::new("rule1", 100)));
+        engine.register_rule(Box::new(MockRule::new("rule2", 100)));
 
         assert_eq!(engine.rules.len(), 1);
         assert_eq!(engine.rules[0].name(), "rule1");
@@ -100,8 +108,8 @@ mod tests {
         config.exclude_rules = Some(vec!["rule2".to_string()]);
 
         let mut engine = Engine::new(config);
-        engine.register_rule(Arc::new(MockRule::new("rule1", 100)));
-        engine.register_rule(Arc::new(MockRule::new("rule2", 100)));
+        engine.register_rule(Box::new(MockRule::new("rule1", 100)));
+        engine.register_rule(Box::new(MockRule::new("rule2", 100)));
 
         assert_eq!(engine.rules.len(), 1);
         assert_eq!(engine.rules[0].name(), "rule1");
@@ -112,9 +120,9 @@ mod tests {
         let config = Config::default();
         let mut engine = Engine::new(config);
 
-        engine.register_rule(Arc::new(MockRule::new("low", 10)));
-        engine.register_rule(Arc::new(MockRule::new("high", 100)));
-        engine.register_rule(Arc::new(MockRule::new("medium", 50)));
+        engine.register_rule(Box::new(MockRule::new("low", 10)));
+        engine.register_rule(Box::new(MockRule::new("high", 100)));
+        engine.register_rule(Box::new(MockRule::new("medium", 50)));
 
         let command = Command::new("foo".to_string(), "".to_string(), "".to_string());
         let corrections = engine.get_corrections(&command);
