@@ -16,6 +16,7 @@ pub mod sudo;
 pub mod cd;
 pub mod python;
 pub mod grep;
+pub mod cp;
 
 #[cfg(test)]
 mod mkdir_tests;
@@ -29,3 +30,5 @@ mod git_tests;
 mod python_tests;
 #[cfg(test)]
 mod grep_tests;
+#[cfg(test)]
+mod cp_tests;
