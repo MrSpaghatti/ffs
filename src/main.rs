@@ -12,6 +12,7 @@ use ffs::rules::{
     cd::CdMkdir,
     python::{PythonExecute, PipUnknownCommand},
     grep::GrepRecursive,
+    apt_get::AptGet,
 };
 use ffs::scripting::load_rhai_rules;
 use ffs::ui::select_correction;
@@ -100,6 +101,7 @@ fn main() -> Result<()> {
     engine.register_rule(Arc::new(PythonExecute));
     engine.register_rule(Arc::new(PipUnknownCommand));
     engine.register_rule(Arc::new(GrepRecursive));
+    engine.register_rule(Arc::new(AptGet));
 
     // Load Rhai rules
     // Use XDG config home usually, or ~/.config/ffs/rules
